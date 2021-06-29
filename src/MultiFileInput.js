@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+import FileItem from './FileItem.js';
 import * as S from './MultiFileInput.styles.js';
 
 function Empty({ onClick }) {
@@ -11,49 +12,57 @@ function Empty({ onClick }) {
   );
 }
 
-function Populated({ files, children }) {
-  console.log('files is', files);
-  return (
-    <>
-      {files.map((file) => (
-        <FileItem key={file.name} preview={file.preview} name={file.name} />
-      ))}
-      {children}
-    </>
-  );
-}
+function MultiFileInput({
+  onChange,
+  fileUploadHook,
+  quota = 10,
+  initialFiles = []
+}) {
+  const [browserFiles, setBrowserFiles] = useState([]);
+  const [remoteFiles, setRemoteFiles] = useState(initialFiles);
 
-function FileItem({ name, preview }) {
-  return (
-    <div key={name}>
-      <img
-        src={preview}
-        alt={name}
-        style={{ width: '3em', aspectRatio: '1 / 1' }}
-      />
-    </div>
+  const fileCount = useMemo(
+    () => remoteFiles.length + browserFiles.length,
+    [browserFiles, remoteFiles]
   );
-}
-
-function MultiFileInput({ onChange, quota = 10, initialFiles = [] }) {
-  const [files, setFiles] = useState(initialFiles);
 
   useEffect(() => {
-    onChange(files);
-  }, [files, onChange]);
+    onChange(remoteFiles);
+  }, [remoteFiles, onChange]);
+
+  const onRemove = (file) => {
+    const { vicinity } = file;
+
+    if (vicinity === 'remote') {
+      // unset remote file
+      console.log('unset remote file');
+    }
+
+    if (vicinity === 'browser') {
+      setBrowserFiles(
+        browserFiles.filter((f) => f.browser.path !== file.browser.path)
+      );
+    }
+  };
+
+  const onUploaded = (file) => {
+    setRemoteFiles(...remoteFiles, file);
+  };
 
   const onDrop = useCallback(
     (acceptedFiles) => {
-      setFiles([
-        ...files,
-        ...acceptedFiles.map((file) =>
-          Object.assign(file, {
-            preview: URL.createObjectURL(file)
-          })
-        )
+      console.log(acceptedFiles);
+      setBrowserFiles([
+        ...browserFiles,
+        ...acceptedFiles.map((file) => {
+          return {
+            vicinity: 'browser',
+            browser: file
+          };
+        })
       ]);
     },
-    [files]
+    [browserFiles]
   );
 
   const {
@@ -65,26 +74,30 @@ function MultiFileInput({ onChange, quota = 10, initialFiles = [] }) {
     open
   } = useDropzone({
     onDrop,
-    accept: 'image/jpeg, image/png'
+    accept: 'image/jpeg, image/png',
+    noClick: true,
+    noKeyboard: true
   });
-
-  // clean up
-  useEffect(
-    () => () => {
-      files.forEach((file) => URL.revokeObjectURL(file.preview));
-    },
-    [files]
-  );
 
   return (
     <section>
       <S.MultiFileInput
         {...getRootProps({ isDragAccept, isDragActive, isDragReject })}
       >
-        {files.length > 0 ? (
-          <Populated files={files}>
-            <button>add more files</button>
-          </Populated>
+        {fileCount > 0 ? (
+          <>
+            {[...remoteFiles, ...browserFiles].map((file, i) => (
+              <FileItem
+                key={`${file?.remote?.name || file?.browser?.name}${i}`}
+                file={file}
+                onUploaded={onUploaded}
+                onRemove={onRemove}
+              />
+            ))}
+            <button style={{ marginTop: '1em' }} onClick={open}>
+              add more files
+            </button>
+          </>
         ) : (
           <Empty onClick={open} />
         )}

@@ -5,8 +5,8 @@ function App() {
   return (
     <div className="App">
       <MultiFileInput
-        onChange={(a) => {
-          console.log('onChanage!', a);
+        onChange={(fileIds) => {
+          console.log('Updated fileIds', fileIds);
         }}
         quota={2}
       ></MultiFileInput>

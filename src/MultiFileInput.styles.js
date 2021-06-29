@@ -35,3 +35,9 @@ export const MultiFileInput = styled('div')`
     `
   )}
 `;
+
+export const FileItem = styled('div')`
+  border: 1px solid hotpink;
+  margin-top: 1em;
+  width: 100%;
+`;
