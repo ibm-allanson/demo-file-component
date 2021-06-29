@@ -15,28 +15,32 @@ import * as S from './MultiFileInput.styles.js';
 //   };
 // };
 
-function FileItem({ file, onRemove, onUploaded }) {
-  const { vicinity } = file;
-  const { name, type } = file[vicinity];
-  const created = file[vicinity]?.created || file[vicinity]?.lastModified;
+function FileItem({ file, onRemove, onUploaded, useUploadFile }) {
+  const [uploadedFile, uploadFile] = useUploadFile();
+  const { vicinity, fileInfo } = file;
+  const created =
+    vicinity === 'browser' ? file.fileInfo.lastModified : file.fileInfo.created;
 
   useEffect(() => {
-    //   if (vicinity === 'browser') {
-    //       console.log('start uploading file...')
-    //       const uploadedFile = useUpload(file)
-    //       console.log('call onUploaded when finished', onUploaded(uploadedFile))
-    //   }
-  }, [vicinity]);
+    if (vicinity === 'browser') {
+      uploadFile(fileInfo);
+    }
+  }, [vicinity, fileInfo, uploadFile]);
+
+  useEffect(() => {
+    if (uploadedFile && file.vicinity === 'browser') {
+      onUploaded({ vicinity: 'remote', fileInfo: uploadedFile }, file);
+    }
+  }, [file, uploadedFile, onUploaded]);
 
   return (
     <S.FileItem>
       {vicinity === 'browser' && <p>loading...</p>}
       {vicinity === 'remote' && (
-        <img src="https://via.placeholder.com/25" alt={name} />
+        <img src={file.fileInfo.id} alt={fileInfo.name} />
       )}
-      <p>{name}</p>
+      <p>{fileInfo.name}</p>
       <p>{created}</p>
-      <p>{type}</p>
       <button
         onClick={() => {
           onRemove(file);
@@ -51,17 +55,13 @@ function FileItem({ file, onRemove, onUploaded }) {
 FileItem.propTypes = {
   file: PropTypes.shape({
     vicinity: PropTypes.oneOf(['browser', 'remote']).isRequired,
-    // properties from browser file api
-    browser: PropTypes.shape({
+    fileInfo: PropTypes.shape({
       name: PropTypes.string, // file name
-      type: PropTypes.string, // e.g. image/jpg
-      lastModified: PropTypes.number // unix timestamp
-    }),
-    // properties for a remote file
-    remote: PropTypes.shape({
-      name: PropTypes.string, // file name
-      type: PropTypes.string, // e.g. image/jpg
-      url: PropTypes.string, //
+
+      // if vicinity === 'browser', properties from browser file api
+      lastModified: PropTypes.number, // unix timestamp
+
+      // if vicinity === 'remote', properties for a remote file
       created: PropTypes.string, // datetime string?? or date?? unknown
       id: PropTypes.string // guid
     })

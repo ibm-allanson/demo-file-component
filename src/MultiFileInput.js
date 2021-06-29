@@ -7,24 +7,19 @@ function Empty({ onClick }) {
   return (
     <div>
       <h1>Drag images here or browse</h1>
-      <button>BROWSE</button>
+      <button onClick={onClick}>BROWSE</button>
     </div>
   );
 }
 
 function MultiFileInput({
   onChange,
-  fileUploadHook,
+  useUploadFile,
   quota = 10,
   initialFiles = []
 }) {
   const [browserFiles, setBrowserFiles] = useState([]);
   const [remoteFiles, setRemoteFiles] = useState(initialFiles);
-
-  const fileCount = useMemo(
-    () => remoteFiles.length + browserFiles.length,
-    [browserFiles, remoteFiles]
-  );
 
   useEffect(() => {
     onChange(remoteFiles);
@@ -34,30 +29,38 @@ function MultiFileInput({
     const { vicinity } = file;
 
     if (vicinity === 'remote') {
-      // unset remote file
       console.log('unset remote file');
     }
 
     if (vicinity === 'browser') {
       setBrowserFiles(
-        browserFiles.filter((f) => f.browser.path !== file.browser.path)
+        browserFiles.filter((f) => f.fileInfo.path !== file.fileInfo.path)
       );
     }
   };
 
-  const onUploaded = (file) => {
-    setRemoteFiles(...remoteFiles, file);
+  const fileCount = useMemo(
+    () => remoteFiles.length + browserFiles.length,
+    [browserFiles, remoteFiles]
+  );
+
+  const onUploaded = (newRemoteFile, oldLocalFile) => {
+    setRemoteFiles([...remoteFiles, newRemoteFile]);
+    setBrowserFiles(
+      browserFiles.filter((f) => f.fileInfo.path !== oldLocalFile.fileInfo.path)
+    );
   };
+
+  console.log([...browserFiles, ...remoteFiles]);
 
   const onDrop = useCallback(
     (acceptedFiles) => {
-      console.log(acceptedFiles);
       setBrowserFiles([
         ...browserFiles,
         ...acceptedFiles.map((file) => {
           return {
             vicinity: 'browser',
-            browser: file
+            fileInfo: file
           };
         })
       ]);
@@ -88,9 +91,10 @@ function MultiFileInput({
           <>
             {[...remoteFiles, ...browserFiles].map((file, i) => (
               <FileItem
-                key={`${file?.remote?.name || file?.browser?.name}${i}`}
+                key={file.fileInfo.name || i}
                 file={file}
                 onUploaded={onUploaded}
+                useUploadFile={useUploadFile}
                 onRemove={onRemove}
               />
             ))}
