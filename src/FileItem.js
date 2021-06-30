@@ -1,53 +1,46 @@
 import PropTypes from 'prop-types';
 import React, { useEffect } from 'react';
-import * as S from './MultiFileInput.styles.js';
-
-// const useUpload = () => {
-//   return {
-//     vicinity: 'remote',
-//     remote: {
-//       id: 'some id',
-//       name: 'the name of the file.jpg',
-//       type: 'image/jpeg',
-//       url: 'url to file',
-//       created: 'a date'
-//     }
-//   };
-// };
+import * as S from './FileItem.styles.js';
 
 function FileItem({ file, onRemove, onUploaded, useUploadFile }) {
   const [uploadedFile, uploadFile] = useUploadFile();
-  const { vicinity, fileInfo } = file;
+  const { vicinity, meta } = file;
   const created =
-    vicinity === 'browser' ? file.fileInfo.lastModified : file.fileInfo.created;
+    vicinity === 'browser'
+      ? new Date(file.meta.lastModified)
+      : new Date(file.meta.created);
 
   useEffect(() => {
     if (vicinity === 'browser') {
-      uploadFile(fileInfo);
+      uploadFile(meta);
     }
-  }, [vicinity, fileInfo, uploadFile]);
+  }, [vicinity, meta, uploadFile]);
 
   useEffect(() => {
     if (uploadedFile && file.vicinity === 'browser') {
-      onUploaded({ vicinity: 'remote', fileInfo: uploadedFile }, file);
+      onUploaded({ vicinity: 'remote', meta: uploadedFile }, file);
     }
   }, [file, uploadedFile, onUploaded]);
 
   return (
-    <S.FileItem>
-      {vicinity === 'browser' && <p>loading...</p>}
-      {vicinity === 'remote' && (
-        <img src={file.fileInfo.id} alt={fileInfo.name} />
-      )}
-      <p>{fileInfo.name}</p>
-      <p>{created}</p>
-      <button
-        onClick={() => {
-          onRemove(file);
-        }}
-      >
-        Remove file
-      </button>
+    <S.FileItem vicinity={vicinity}>
+      <S.Meta>
+        <div style={{ width: '2em', height: '50px' }}>
+          {vicinity === 'browser' && <p>loading...</p>}
+          {vicinity === 'remote' && <img src={file.meta.id} alt={meta.name} />}
+        </div>
+        <p>{meta.name}</p>
+        <p>{created.toLocaleString()}</p>
+      </S.Meta>
+      <S.Action>
+        <button
+          onClick={() => {
+            onRemove(file);
+          }}
+        >
+          Remove file
+        </button>
+      </S.Action>
     </S.FileItem>
   );
 }
@@ -55,14 +48,14 @@ function FileItem({ file, onRemove, onUploaded, useUploadFile }) {
 FileItem.propTypes = {
   file: PropTypes.shape({
     vicinity: PropTypes.oneOf(['browser', 'remote']).isRequired,
-    fileInfo: PropTypes.shape({
+    meta: PropTypes.shape({
       name: PropTypes.string, // file name
 
       // if vicinity === 'browser', properties from browser file api
       lastModified: PropTypes.number, // unix timestamp
 
       // if vicinity === 'remote', properties for a remote file
-      created: PropTypes.string, // datetime string?? or date?? unknown
+      created: PropTypes.number, // unix timestamp?
       id: PropTypes.string // guid
     })
   }),

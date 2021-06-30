@@ -14,30 +14,13 @@ function Empty({ onClick }) {
 
 function MultiFileInput({
   onChange,
+  onError,
   useUploadFile,
   quota = 10,
   initialFiles = []
 }) {
   const [browserFiles, setBrowserFiles] = useState([]);
   const [remoteFiles, setRemoteFiles] = useState(initialFiles);
-
-  useEffect(() => {
-    onChange(remoteFiles);
-  }, [remoteFiles, onChange]);
-
-  const onRemove = (file) => {
-    const { vicinity } = file;
-
-    if (vicinity === 'remote') {
-      console.log('unset remote file');
-    }
-
-    if (vicinity === 'browser') {
-      setBrowserFiles(
-        browserFiles.filter((f) => f.fileInfo.path !== file.fileInfo.path)
-      );
-    }
-  };
 
   const fileCount = useMemo(
     () => remoteFiles.length + browserFiles.length,
@@ -47,25 +30,75 @@ function MultiFileInput({
   const onUploaded = (newRemoteFile, oldLocalFile) => {
     setRemoteFiles([...remoteFiles, newRemoteFile]);
     setBrowserFiles(
-      browserFiles.filter((f) => f.fileInfo.path !== oldLocalFile.fileInfo.path)
+      browserFiles.filter((f) => f.meta.path !== oldLocalFile.meta.path)
     );
+  };
+
+  const status =
+    fileCount < quota ? (fileCount === 0 ? 'EMPTY' : 'AVAILABLE') : 'FULL';
+  let statusMessage;
+  switch (status) {
+    case 'EMPTY':
+      statusMessage = `Add up to ${quota - fileCount} files`;
+      break;
+    case 'AVAILABLE':
+      statusMessage = `You can add ${quota - fileCount} more file${
+        quota - fileCount !== 1 ? 's' : ''
+      }`;
+      break;
+    case 'FULL':
+      statusMessage = `Added ${quota} of ${quota} available files`;
+      break;
+    default:
+      break;
+  }
+
+  useEffect(() => {
+    onChange(remoteFiles);
+  }, [remoteFiles, onChange]);
+
+  const onRemove = (file) => {
+    const { vicinity } = file;
+
+    if (vicinity === 'remote') {
+      setRemoteFiles(remoteFiles.filter((f) => f.meta.id !== file.meta.id));
+    }
+
+    if (vicinity === 'browser') {
+      setBrowserFiles(
+        browserFiles.filter((f) => f.meta.name !== file.meta.name)
+      );
+    }
   };
 
   console.log([...browserFiles, ...remoteFiles]);
 
   const onDrop = useCallback(
     (acceptedFiles) => {
-      setBrowserFiles([
-        ...browserFiles,
+      const newCount = acceptedFiles.length;
+      const nextFiles = [...browserFiles];
+
+      if (newCount + fileCount > quota) {
+        const available = quota - fileCount;
+        acceptedFiles.splice(available);
+        onError({
+          title: `Maximum image upload of ${quota} files reached`,
+          text: ` To add more files, first remove an existing file`
+        });
+      }
+
+      nextFiles.push(
         ...acceptedFiles.map((file) => {
           return {
             vicinity: 'browser',
-            fileInfo: file
+            meta: file
           };
         })
-      ]);
+      );
+
+      setBrowserFiles(nextFiles);
     },
-    [browserFiles]
+    [browserFiles, fileCount, quota, onError]
   );
 
   const {
@@ -87,18 +120,25 @@ function MultiFileInput({
       <S.MultiFileInput
         {...getRootProps({ isDragAccept, isDragActive, isDragReject })}
       >
+        <p>{statusMessage}</p>
         {fileCount > 0 ? (
           <>
-            {[...remoteFiles, ...browserFiles].map((file, i) => (
-              <FileItem
-                key={file.fileInfo.name || i}
-                file={file}
-                onUploaded={onUploaded}
-                useUploadFile={useUploadFile}
-                onRemove={onRemove}
-              />
-            ))}
-            <button style={{ marginTop: '1em' }} onClick={open}>
+            {[...remoteFiles, ...browserFiles]
+              .sort((a, b) => a.meta.name.localeCompare(b.meta.name))
+              .map((file, i) => (
+                <FileItem
+                  key={file.meta?.id || file.meta.name} // todo, fix when not using placeholder data
+                  file={file}
+                  onUploaded={onUploaded}
+                  useUploadFile={useUploadFile}
+                  onRemove={onRemove}
+                />
+              ))}
+            <button
+              disabled={status === 'FULL'}
+              style={{ marginTop: '1em' }}
+              onClick={open}
+            >
               add more files
             </button>
           </>

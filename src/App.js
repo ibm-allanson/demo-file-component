@@ -15,8 +15,10 @@ const useUploadFile = () => {
     if (mountedRef.current) {
       setResponse({
         name: file.name,
-        created: `${Date.now()}`,
-        id: 'http://placekitten.com/50/50'
+        created: Date.now(),
+        id: `https://picsum.photos/50/50?grayscale&random=${
+          Math.floor(Math.random() * 500) + 1
+        }`
       });
     }
   }, []);
@@ -34,11 +36,14 @@ function App() {
   return (
     <div className="App">
       <MultiFileInput
+        quota={10}
+        useUploadFile={useUploadFile}
         onChange={(fileIds) => {
           console.log('Updated fileIds', fileIds);
         }}
-        quota={2}
-        useUploadFile={useUploadFile}
+        onError={(errMsg) => {
+          alert(`${errMsg.title} NEWLINE ${errMsg.text}`);
+        }}
       ></MultiFileInput>
     </div>
   );
